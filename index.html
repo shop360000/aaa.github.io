@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>GoLogin Fetch Parser</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 40px; background: #f7f9fb; }
+    h1 { color: #1a73e8; }
+    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
+    button { margin-top: 10px; padding: 10px 16px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #125bb5; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f2f2f2; text-align: left; }
+    #output { white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 6px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🔍 GoLogin Fetch Parser</h1>
+  <p>Dán đoạn <b>fetch(...)</b> vào ô bên dưới:</p>
+  <textarea id="fetchInput" placeholder="Paste đoạn fetch() ở đây..."></textarea><br>
+  <button onclick="parseFetch()">Phân tích</button>
+  <button onclick="runApi()">Chạy API & Lưu Toàn Bộ TXT</button>
+
+  <h3>📄 Kết quả phân tích:</h3>
+  <table id="resultTable" style="display:none">
+    <tbody></tbody>
+  </table>
+
+  <h3>📡 Kết quả gọi API:</h3>
+  <div id="output">Chưa chạy...</div>
+
+  <script>
+    let parsedData = null;
+
+    function parseFetch() {
+      const input = document.getElementById("fetchInput").value.trim();
+      if (!input) return alert("Vui lòng dán đoạn fetch()!");
+      try {
+        const urlMatch = input.match(/fetch\("(.*?)"/);
+        const url = urlMatch ? urlMatch[1] : null;
+        const jsonMatch = input.match(/{[\s\S]*}/);
+        const jsonRaw = jsonMatch ? jsonMatch[0] : null;
+        const jsonParsed = eval('(' + jsonRaw + ')');
+
+        parsedData = {
+          url,
+          headers: jsonParsed.headers,
+          method: jsonParsed.method || 'GET',
+          body: jsonParsed.body || null,
+          workspaceId: jsonParsed.headers['workspace-id'] || null,
+          token: jsonParsed.headers['authorization']?.replace("Bearer ", "") || null
+        };
+
+        const tbody = document.querySelector("#resultTable tbody");
+        tbody.innerHTML = `
+          <tr><th>URL</th><td>${parsedData.url}</td></tr>
+          <tr><th>Authorization</th><td>${parsedData.headers['authorization']}</td></tr>
+          <tr><th>Workspace ID</th><td>${parsedData.workspaceId}</td></tr>
+          <tr><th>Folder ID</th><td>${parsedData.url.match(/folderId=([^&]+)/)?.[1] || ''}</td></tr>
+          <tr><th>Limit</th><td>${parsedData.url.match(/limit=(\d+)/)?.[1] || ''}</td></tr>
+          <tr><th>Offset</th><td>${parsedData.url.match(/offset=(\d+)/)?.[1] || ''}</td></tr>
+          <tr><th>Sort Field</th><td>${parsedData.url.match(/sortField=([^&]+)/)?.[1] || ''}</td></tr>
+        `;
+        document.getElementById("resultTable").style.display = "table";
+      } catch (err) {
+        alert("Lỗi khi phân tích chuỗi fetch(): " + err.message);
+      }
+    }
+
+    async function runApi() {
+      if (!parsedData) return alert("Chưa có dữ liệu! Hãy bấm Phân tích trước.");
+      const outputEl = document.getElementById("output");
+      outputEl.innerText = "⏳ Đang tải danh sách profile...";
+
+      try {
+        let allProfiles = [];
+        let offset = 0;
+        const limit = 30;
+
+        while (true) {
+          const url = parsedData.url.replace(/limit=\d+/, `limit=${limit}`).replace(/offset=\d+/, `offset=${offset}`);
+          const res = await axios.get(url, { headers: parsedData.headers });
+          const data = res.data;
+
+          if (data && Array.isArray(data.profiles) && data.profiles.length > 0) {
+            allProfiles.push(...data.profiles);
+            outputEl.innerText = `✅ Đã lấy ${allProfiles.length} profile...`;
+            if (data.profiles.length < limit) break; // hết dữ liệu
+            offset += limit;
+          } else {
+            break; // không còn dữ liệu
+          }
+        }
+
+        // 📝 Lưu file TXT
+        if (allProfiles.length > 0) {
+          const lines = allProfiles.map(p => `${p.id} | ${p.name || ''}`).join("\n");
+          const blob = new Blob([lines], { type: "text/plain" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "profiles_list.txt";
+          a.click();
+          outputEl.innerText += `\n📄 Hoàn tất! Tổng cộng ${allProfiles.length} profiles. File đã tải xuống.`;
+        } else {
+          outputEl.innerText = "⚠️ Không tìm thấy profile nào.";
+        }
+
+      } catch (err) {
+        outputEl.innerText =
+          "❌ Lỗi: " + (err.response?.status || '') + "\n" +
+          (err.response?.data ? JSON.stringify(err.response.data, null, 2) : err.message);
+      }
+    }
+  </script>
+</body>
+</html>
