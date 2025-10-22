@@ -1,42 +1,62 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>GoLogin Fetch Parser</title>
+  <title>GoLogin Fetch Tool</title>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', sans-serif; margin: 40px; background: #f7f9fb; }
     h1 { color: #1a73e8; }
-    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
+    textarea, input { width: 100%; font-family: monospace; font-size: 14px; }
+    textarea { height: 200px; }
     button { margin-top: 10px; padding: 10px 16px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; }
     button:hover { background: #125bb5; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
     th, td { border: 1px solid #ddd; padding: 8px; }
     th { background: #f2f2f2; text-align: left; }
     #output { white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 6px; margin-top: 10px; }
+    .group { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h1>🔍 GoLogin Fetch Parser</h1>
-  <p>Dán đoạn <b>fetch(...)</b> vào ô bên dưới:</p>
-  <textarea id="fetchInput" placeholder="Paste đoạn fetch() ở đây..."></textarea><br>
-  <button onclick="parseFetch()">Phân tích</button>
-  <button onclick="runApi()">Chạy API & Lưu Toàn Bộ TXT</button>
+  <h1>🧩 GoLogin Fetch Parser + Bulk Creator</h1>
+
+  <div class="group">
+    <h3>1️⃣ Phân tích đoạn fetch()</h3>
+    <textarea id="fetchInput" placeholder="Dán fetch(...) ở đây..."></textarea>
+    <button onclick="parseFetch()">Phân tích</button>
+  </div>
+
+  <div class="group">
+    <h3>2️⃣ Lấy danh sách profile</h3>
+    <button onclick="runApi()">Chạy API & Lưu Toàn Bộ TXT</button>
+  </div>
+
+  <div class="group">
+    <h3>3️⃣ Tạo Profile Hàng Loạt</h3>
+    <label>Nhập số lượng cần tạo (ví dụ 200):</label>
+    <input type="number" id="createCount" value="200" min="1" max="10000" />
+    <button onclick="bulkCreate()">Tạo Hàng Loạt</button>
+  </div>
 
   <h3>📄 Kết quả phân tích:</h3>
   <table id="resultTable" style="display:none">
     <tbody></tbody>
   </table>
 
-  <h3>📡 Kết quả gọi API:</h3>
+  <h3>📡 Kết quả:</h3>
   <div id="output">Chưa chạy...</div>
 
   <script>
     let parsedData = null;
 
+    // =============================================================
+    // 🧩 PHÂN TÍCH FETCH()
+    // =============================================================
     function parseFetch() {
       const input = document.getElementById("fetchInput").value.trim();
       if (!input) return alert("Vui lòng dán đoạn fetch()!");
+
       try {
         const urlMatch = input.match(/fetch\("(.*?)"/);
         const url = urlMatch ? urlMatch[1] : null;
@@ -56,19 +76,21 @@
         const tbody = document.querySelector("#resultTable tbody");
         tbody.innerHTML = `
           <tr><th>URL</th><td>${parsedData.url}</td></tr>
+          <tr><th>Method</th><td>${parsedData.method}</td></tr>
           <tr><th>Authorization</th><td>${parsedData.headers['authorization']}</td></tr>
           <tr><th>Workspace ID</th><td>${parsedData.workspaceId}</td></tr>
-          <tr><th>Folder ID</th><td>${parsedData.url.match(/folderId=([^&]+)/)?.[1] || ''}</td></tr>
-          <tr><th>Limit</th><td>${parsedData.url.match(/limit=(\d+)/)?.[1] || ''}</td></tr>
-          <tr><th>Offset</th><td>${parsedData.url.match(/offset=(\d+)/)?.[1] || ''}</td></tr>
-          <tr><th>Sort Field</th><td>${parsedData.url.match(/sortField=([^&]+)/)?.[1] || ''}</td></tr>
         `;
         document.getElementById("resultTable").style.display = "table";
+
+        document.getElementById("output").innerText = "✅ Đã phân tích xong.";
       } catch (err) {
         alert("Lỗi khi phân tích chuỗi fetch(): " + err.message);
       }
     }
 
+    // =============================================================
+    // 📋 LẤY TOÀN BỘ PROFILE
+    // =============================================================
     async function runApi() {
       if (!parsedData) return alert("Chưa có dữ liệu! Hãy bấm Phân tích trước.");
       const outputEl = document.getElementById("output");
@@ -80,21 +102,20 @@
         const limit = 30;
 
         while (true) {
-          const url = parsedData.url.replace(/limit=\d+/, `limit=${limit}`).replace(/offset=\d+/, `offset=${offset}`);
+          const url = parsedData.url
+            .replace(/limit=\d+/, `limit=${limit}`)
+            .replace(/offset=\d+/, `offset=${offset}`);
           const res = await axios.get(url, { headers: parsedData.headers });
           const data = res.data;
 
           if (data && Array.isArray(data.profiles) && data.profiles.length > 0) {
             allProfiles.push(...data.profiles);
             outputEl.innerText = `✅ Đã lấy ${allProfiles.length} profile...`;
-            if (data.profiles.length < limit) break; // hết dữ liệu
+            if (data.profiles.length < limit) break;
             offset += limit;
-          } else {
-            break; // không còn dữ liệu
-          }
+          } else break;
         }
 
-        // 📝 Lưu file TXT
         if (allProfiles.length > 0) {
           const lines = allProfiles.map(p => `${p.id} | ${p.name || ''}`).join("\n");
           const blob = new Blob([lines], { type: "text/plain" });
@@ -102,16 +123,44 @@
           a.href = URL.createObjectURL(blob);
           a.download = "profiles_list.txt";
           a.click();
-          outputEl.innerText += `\n📄 Hoàn tất! Tổng cộng ${allProfiles.length} profiles. File đã tải xuống.`;
-        } else {
-          outputEl.innerText = "⚠️ Không tìm thấy profile nào.";
-        }
-
+          outputEl.innerText += `\n📄 Hoàn tất! Tổng cộng ${allProfiles.length} profiles.`;
+        } else outputEl.innerText = "⚠️ Không tìm thấy profile nào.";
       } catch (err) {
-        outputEl.innerText =
-          "❌ Lỗi: " + (err.response?.status || '') + "\n" +
+        outputEl.innerText = "❌ Lỗi: " + (err.response?.status || '') + "\n" +
           (err.response?.data ? JSON.stringify(err.response.data, null, 2) : err.message);
       }
+    }
+
+    // =============================================================
+    // 🧱 TẠO PROFILE HÀNG LOẠT (200 MỖI LẦN)
+    // =============================================================
+    async function bulkCreate() {
+      if (!parsedData || parsedData.method !== 'POST')
+        return alert("Hãy dán đoạn fetch() tạo profile (POST) và bấm Phân tích trước!");
+
+      const total = parseInt(document.getElementById("createCount").value) || 200;
+      const batchSize = 200;
+      let created = 0;
+      const outputEl = document.getElementById("output");
+      outputEl.innerText = `🚀 Bắt đầu tạo ${total} profile...\n`;
+
+      const body = JSON.parse(parsedData.body);
+
+      while (created < total) {
+        const remaining = Math.min(batchSize, total - created);
+        const promises = [];
+
+        for (let i = 0; i < remaining; i++) {
+          const customBody = { ...body, name: `${body.name || 'profile'}_${created + i + 1}` };
+          promises.push(axios.post(parsedData.url, customBody, { headers: parsedData.headers }));
+        }
+
+        await Promise.allSettled(promises);
+        created += remaining;
+        outputEl.innerText += `✅ Đã tạo ${created}/${total}\n`;
+      }
+
+      outputEl.innerText += `🎉 Hoàn tất tạo ${total} profile!`;
     }
   </script>
 </body>
