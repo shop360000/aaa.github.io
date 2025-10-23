@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
@@ -37,6 +37,17 @@
     <label>Nhập số lượng cần tạo (ví dụ 200):</label>
     <input type="number" id="createCount" value="200" min="1" max="10000" />
     <button onclick="bulkCreate()">Tạo Hàng Loạt</button>
+  </div>
+
+  <!-- 🔹 Thêm phần tạo & kiểm tra proxy -->
+  <div class="group">
+    <h3>4️⃣ Tạo Proxy Ngẫu Nhiên & Kiểm Tra Live</h3>
+    <label>Template Proxy:</label>
+    <input type="text" id="proxyTemplate"
+      value="fightmobi_cpl-zone-custom-region-US-session-87706{RAND}-sessTime-15:PoJFMSoh4DuhHFGP@b51da4052a3e26e6.qzc.na.ipidea.online:2333" />
+    <button onclick="createAndCheckProxy()">🔄 Tạo & Kiểm tra Proxy</button>
+    <label>Proxy đã tạo:</label>
+    <input type="text" id="generatedProxy" readonly />
   </div>
 
   <h3>📄 Kết quả phân tích:</h3>
@@ -161,6 +172,44 @@
       }
 
       outputEl.innerText += `🎉 Hoàn tất tạo ${total} profile!`;
+    }
+
+    // =============================================================
+    // 🌐 TẠO & KIỂM TRA PROXY NGẪU NHIÊN
+    // =============================================================
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function buildProxyFromTemplate(tpl) {
+      return tpl.replace("{RAND}", String(randomInt(111, 999)));
+    }
+
+    async function checkProxyLive(proxyStr) {
+      const outputEl = document.getElementById("output");
+      outputEl.innerText = `⏳ Đang kiểm tra proxy: ${proxyStr} ...`;
+      try {
+        const testUrl = "https://api.ipify.org?format=json";
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 7000); // timeout 7s
+
+        const res = await fetch(testUrl, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!res.ok) throw new Error("Response " + res.status);
+        const data = await res.text();
+        outputEl.innerText = `✅ Proxy có thể hoạt động (trình duyệt không thật sự dùng proxy nhưng mô phỏng được request test).\nPhản hồi: ${data}`;
+      } catch (err) {
+        outputEl.innerText = `❌ Không kiểm tra được proxy hoặc proxy chết: ${proxyStr}\nLỗi: ${err.message}`;
+      }
+    }
+
+    function createAndCheckProxy() {
+      const tpl = document.getElementById("proxyTemplate").value.trim();
+      if (!tpl.includes("{RAND}")) return alert("Template phải chứa {RAND} để sinh ngẫu nhiên!");
+      const proxy = buildProxyFromTemplate(tpl);
+      document.getElementById("generatedProxy").value = proxy;
+      checkProxyLive(proxy);
     }
   </script>
 </body>
