@@ -1,170 +1,245 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>Proxy Generator & Live Checker — 100 at once</title>
+  <meta charset="UTF-8">
+  <title>GoLogin Fetch Tool + Proxy Checker</title>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; margin: 24px; background: #f7f9fb; color: #111; }
-    h1 { color: #1a73e8; margin-bottom: 6px; }
-    .group { margin-top: 18px; }
-    label { display:block; margin-top:8px; font-weight:600; font-size:13px; }
-    input[type="text"], input[type="number"], textarea { width:100%; box-sizing:border-box; font-family: monospace; padding:8px; font-size:13px; border-radius:6px; border:1px solid #ddd; background:white; }
-    textarea { height:120px; }
-    button { margin-top:10px; padding:10px 14px; background:#1a73e8; color:white; border:0; border-radius:6px; cursor:pointer; }
-    button.small { padding:6px 10px; font-size:13px; }
-    button:hover { background:#125bb5; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; background:white; border-radius:6px; overflow:hidden; }
-    th, td { padding:8px 10px; border-bottom:1px solid #eee; font-size:13px; text-align:left; }
-    th { background:#fafafa; color:#333; font-weight:700; }
-    .ok { color:green; font-weight:700; }
-    .fail { color:red; font-weight:700; }
-    #output { white-space:pre-wrap; background:#fff; padding:10px; border-radius:6px; border:1px solid #eee; margin-top:10px; min-height:32px; }
+    body { font-family: 'Segoe UI', sans-serif; margin: 40px; background: #f7f9fb; }
+    h1 { color: #1a73e8; }
+    textarea, input { width: 100%; font-family: monospace; font-size: 14px; }
+    textarea { height: 200px; }
+    button { margin-top: 10px; padding: 10px 16px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #125bb5; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+    th { background: #f2f2f2; text-align: left; }
+    #output { white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 6px; margin-top: 10px; }
+    .group { margin-top: 20px; }
+    .ok { color: green; font-weight: 600; }
+    .fail { color: red; font-weight: 600; }
   </style>
 </head>
 <body>
-  <h1>🔧 Proxy Generator & Live Checker</h1>
+  <h1>🧩 GoLogin Fetch Parser + Bulk Creator + Proxy Tester</h1>
 
   <div class="group">
-    <label>Template proxy (phải chứa <code>{RAND}</code>)</label>
-    <input id="proxyTemplate" type="text"
-      value="fightmobi_cpl-zone-custom-region-US-session-87706{RAND}-sessTime-15:PoJFMSoh4DuhHFGP@b51da4052a3e26e6.qzc.na.ipidea.online:2333" />
-    <label>🔢 Số lượng proxy cần sinh & test</label>
-    <input id="proxyCount" type="number" value="100" min="1" max="1000" />
-    <div style="margin-top:8px;">
-      <button onclick="onGenerateClicked()">🚀 Tạo & Kiểm tra (theo số nhập)</button>
-      <button class="small" onclick="onQuick100()">⚡ Tạo 100 & Kiểm tra</button>
-      <button class="small" onclick="onClearTable()">🧹 Xóa bảng</button>
-    </div>
-    <div style="margin-top:8px; font-size:12px; color:#555;">
-      Lưu ý: template cần có <code>{RAND}</code> — mỗi proxy sẽ thay bằng số ngẫu nhiên 111–999.<br/>
-      Kết quả hiển thị: chỉ hiện <strong>STT / trạng thái / IP</strong> (proxy đầy đủ ẩn). File <code>proxy_live.txt</code> sẽ tự tải xuống nếu có proxy LIVE.
-    </div>
+    <h3>1️⃣ Phân tích đoạn fetch()</h3>
+    <textarea id="fetchInput" placeholder="Dán fetch(...) ở đây..."></textarea>
+    <button onclick="parseFetch()">Phân tích</button>
   </div>
 
   <div class="group">
+    <h3>2️⃣ Lấy danh sách profile</h3>
+    <button onclick="runApi()">Chạy API & Lưu Toàn Bộ TXT</button>
+  </div>
+
+  <div class="group">
+    <h3>3️⃣ Tạo Profile Hàng Loạt</h3>
+    <label>Nhập số lượng cần tạo (ví dụ 200):</label>
+    <input type="number" id="createCount" value="200" min="1" max="10000" />
+    <button onclick="bulkCreate()">Tạo Hàng Loạt</button>
+  </div>
+
+  <!-- 🔹 Thêm phần tạo & kiểm tra proxy -->
+  <div class="group">
+    <h3>4️⃣ Tạo Proxy Ngẫu Nhiên & Kiểm Tra Live</h3>
+    <label>Template Proxy:</label>
+    <input type="text" id="proxyTemplate"
+      value="" />
+
+    <label>Số lượng cần tạo:</label>
+    <input type="number" id="proxyCount" value="5" min="1" max="100" />
+
+    <button onclick="bulkCheckProxy()">🚀 Tạo & Kiểm tra hàng loạt</button>
+
     <table id="proxyTable" style="display:none">
       <thead>
-        <tr><th>#</th><th>Trạng thái</th><th>IP (nếu LIVE)</th></tr>
+        <tr><th>#</th><th>Proxy</th><th>Trạng thái</th><th>IP trả về</th></tr>
       </thead>
       <tbody></tbody>
     </table>
-
-    <div id="output">Chưa chạy.</div>
   </div>
 
-<script>
-/* ============================================================
-   Helper & concurrency control
-   - generate N proxies from template (replace {RAND})
-   - test via https://api.ipify.org?format=json using axios proxy option
-   - throttle requests in batches to avoid spamming browser/system
-   - hide proxy strings in UI; keep them in memory to produce download
-   ============================================================ */
+  <h3>📄 Kết quả phân tích:</h3>
+  <table id="resultTable" style="display:none">
+    <tbody></tbody>
+  </table>
 
-const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  <h3>📡 Log:</h3>
+  <div id="output">Chưa chạy...</div>
 
-// build one proxy string from template (replace {RAND})
-function buildProxy(tpl) {
-  return tpl.replace(/{RAND}/g, String(randInt(111, 999)));
-}
+  <script>
+    let parsedData = null;
 
-// parse proxy string into { username, password, host, port }
-// expects format: authUser:authPass@host:port  (host may include dots)
-function parseProxy(proxyStr) {
-  const [authPart, hostPart] = proxyStr.split('@');
-  const [username = '', password = ''] = (authPart || '').split(':');
-  // hostPart may have multiple colons (rare) but last segment is port
-  const hostParts = (hostPart || '').split(':');
-  const port = hostParts.length > 1 ? hostParts.pop() : '';
-  const host = hostParts.join(':') || '';
-  return { username, password, host, port };
-}
+    // =============================================================
+    // 🧩 PHÂN TÍCH FETCH()
+    // =============================================================
+    function parseFetch() {
+      const input = document.getElementById("fetchInput").value.trim();
+      if (!input) return alert("Vui lòng dán đoạn fetch()!");
 
-// Test one proxy using axios proxy option (http proxy)
-async function testProxyAxios(proxyStr) {
-  const parsed = parseProxy(proxyStr);
-  if (!parsed.host || !parsed.port) return { ok: false, error: 'invalid-proxy' };
+      try {
+        const urlMatch = input.match(/fetch\("(.*?)"/);
+        const url = urlMatch ? urlMatch[1] : null;
+        const jsonMatch = input.match(/{[\s\S]*}/);
+        const jsonRaw = jsonMatch ? jsonMatch[0] : null;
+        const jsonParsed = eval('(' + jsonRaw + ')');
 
-  try {
-    // test API
-    const res = await axios.get('https://api.ipify.org?format=json', {
-      timeout: 8000,
-      proxy: {
-        protocol: 'http',
-        host: parsed.host,
-        port: parseInt(parsed.port, 10),
-        auth: {
-          username: parsed.username,
-          password: parsed.password
-        }
+        parsedData = {
+          url,
+          headers: jsonParsed.headers,
+          method: jsonParsed.method || 'GET',
+          body: jsonParsed.body || null,
+          workspaceId: jsonParsed.headers['workspace-id'] || null,
+          token: jsonParsed.headers['authorization']?.replace("Bearer ", "") || null
+        };
+
+        const tbody = document.querySelector("#resultTable tbody");
+        tbody.innerHTML = `
+          <tr><th>URL</th><td>${parsedData.url}</td></tr>
+          <tr><th>Method</th><td>${parsedData.method}</td></tr>
+          <tr><th>Authorization</th><td>${parsedData.headers['authorization']}</td></tr>
+          <tr><th>Workspace ID</th><td>${parsedData.workspaceId}</td></tr>
+        `;
+        document.getElementById("resultTable").style.display = "table";
+        document.getElementById("output").innerText = "✅ Đã phân tích xong.";
+      } catch (err) {
+        alert("Lỗi khi phân tích chuỗi fetch(): " + err.message);
       }
-    });
-    // good response
-    const ip = (res && res.data && (res.data.ip || res.data)) || String(res.data || '');
-    return { ok: true, ip: ip };
-  } catch (err) {
-    // unify error message
-    return { ok: false, error: (err && err.message) ? err.message : 'error' };
-  }
-}
+    }
 
-// Throttled batch runner: runs tasks in batches of size `batchSize`
-async function runInBatches(items, batchSize, workerFn, progressCallback) {
-  const results = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    // start all promises in batch
-    const promises = batch.map((it, idx) => workerFn(it, i + idx));
-    const settled = await Promise.allSettled(promises);
-    settled.forEach(s => results.push(s.status === 'fulfilled' ? s.value : { ok: false, error: s.reason && s.reason.message ? s.reason.message : String(s.reason) }));
-    if (progressCallback) progressCallback(Math.min(i + batchSize, items.length));
-    // small delay between batches to be polite
-    await new Promise(r => setTimeout(r, 200)); 
-  }
-  return results;
-}
+    // =============================================================
+    // 📋 LẤY TOÀN BỘ PROFILE
+    // =============================================================
+    async function runApi() {
+      if (!parsedData) return alert("Chưa có dữ liệu! Hãy bấm Phân tích trước.");
+      const outputEl = document.getElementById("output");
+      outputEl.innerText = "⏳ Đang tải danh sách profile...";
 
-/* UI helpers */
-function ensureTableVisible() {
-  const tbl = document.getElementById('proxyTable');
-  tbl.style.display = 'table';
-}
-function clearTableBody() {
-  const tbody = document.querySelector('#proxyTable tbody');
-  tbody.innerHTML = '';
-  document.getElementById('proxyTable').style.display = 'none';
-}
+      try {
+        let allProfiles = [];
+        let offset = 0;
+        const limit = 30;
 
-/* Main: generate N proxies, test them (throttled), show results, download live ones */
-async function generateAndTest(count) {
-  const tpl = document.getElementById('proxyTemplate').value.trim();
-  const output = document.getElementById('output');
-  if (!tpl || !tpl.includes('{RAND}')) {
-    alert('Template phải chứa {RAND} để sinh ngẫu nhiên!');
-    return;
-  }
-  if (count <= 0) { alert('Số lượng phải > 0'); return; }
+        while (true) {
+          const url = parsedData.url
+            .replace(/limit=\d+/, `limit=${limit}`)
+            .replace(/offset=\d+/, `offset=${offset}`);
+          const res = await axios.get(url, { headers: parsedData.headers });
+          const data = res.data;
 
-  // generate proxies (kept in memory, not shown)
-  const proxies = Array.from({length: count}, () => buildProxy(tpl));
-  output.innerText = `🔄 Đã sinh ${count} proxy (ẩn). Đang kiểm tra...`;
+          if (data && Array.isArray(data.profiles) && data.profiles.length > 0) {
+            allProfiles.push(...data.profiles);
+            outputEl.innerText = `✅ Đã lấy ${allProfiles.length} profile...`;
+            if (data.profiles.length < limit) break;
+            offset += limit;
+          } else break;
+        }
 
-  // prepare UI table
-  ensureTableVisible();
-  const tbody = document.querySelector('#proxyTable tbody');
-  tbody.innerHTML = '';
-  // fill placeholder rows first
-  for (let i = 0; i < count; i++) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i+1}</td><td>⏳ PENDING</td><td>-</td>`;
-    tbody.appendChild(tr);
-  }
+        if (allProfiles.length > 0) {
+          const lines = allProfiles.map(p => `${p.id} | ${p.name || ''}`).join("\n");
+          const blob = new Blob([lines], { type: "text/plain" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "profiles_list.txt";
+          a.click();
+          outputEl.innerText += `\n📄 Hoàn tất! Tổng cộng ${allProfiles.length} profiles.`;
+        } else outputEl.innerText = "⚠️ Không tìm thấy profile nào.";
+      } catch (err) {
+        outputEl.innerText = "❌ Lỗi: " + (err.response?.status || '') + "\n" +
+          (err.response?.data ? JSON.stringify(err.response.data, null, 2) : err.message);
+      }
+    }
 
-  // worker function uses axios proxy test
-  const worker = async (proxyStr, index) => {
-    const res = await testProxyAxios(proxyStr);
-    return { index, proxy: proxyStr, ok: res.ok, ip: res.ok ? res.ip : (res.error || '-') };
-  };
+    // =============================================================
+    // 🧱 TẠO PROFILE HÀNG LOẠT
+    // =============================================================
+    async function bulkCreate() {
+      if (!parsedData || parsedData.method !== 'POST')
+        return alert("Hãy dán đoạn fetch() tạo profile (POST) và bấm Phân tích trước!");
 
-  // run with batc
+      const total = parseInt(document.getElementById("createCount").value) || 200;
+      const batchSize = 200;
+      let created = 0;
+      const outputEl = document.getElementById("output");
+      outputEl.innerText = `🚀 Bắt đầu tạo ${total} profile...\n`;
+
+      const body = JSON.parse(parsedData.body);
+
+      while (created < total) {
+        const remaining = Math.min(batchSize, total - created);
+        const promises = [];
+
+        for (let i = 0; i < remaining; i++) {
+          const customBody = { ...body, name: `${body.name || 'profile'}_${created + i + 1}` };
+          promises.push(axios.post(parsedData.url, customBody, { headers: parsedData.headers }));
+        }
+
+        await Promise.allSettled(promises);
+        created += remaining;
+        outputEl.innerText += `✅ Đã tạo ${created}/${total}\n`;
+      }
+
+      outputEl.innerText += `🎉 Hoàn tất tạo ${total} profile!`;
+    }
+
+    // =============================================================
+    // 🌐 TẠO & KIỂM TRA PROXY NGẪU NHIÊN (HÀNG LOẠT)
+    // =============================================================
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function buildProxyFromTemplate(tpl) {
+      return tpl.replace("{RAND}", String(randomInt(111, 999)));
+    }
+
+    async function testProxy(proxy) {
+      const testApi = "https://api.ipify.org?format=json"; // có thể đổi sang ifconfig.me/ip
+      try {
+        const res = await axios.get(testApi, {
+          timeout: 8000,
+          proxy: {
+            protocol: "http",
+            host: proxy.split("@").pop().split(":")[0],
+            port: proxy.split(":").pop(),
+            auth: {
+              username: proxy.split("@")[0].split(":")[0],
+              password: proxy.split("@")[0].split(":")[1]
+            }
+          }
+        });
+        return { ok: true, ip: res.data.ip || res.data };
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    }
+
+    async function bulkCheckProxy() {
+      const tpl = document.getElementById("proxyTemplate").value.trim();
+      const count = parseInt(document.getElementById("proxyCount").value) || 5;
+      if (!tpl.includes("{RAND}")) return alert("Template phải chứa {RAND} để sinh ngẫu nhiên!");
+      const outputEl = document.getElementById("output");
+      const tbody = document.querySelector("#proxyTable tbody");
+      tbody.innerHTML = "";
+      document.getElementById("proxyTable").style.display = "table";
+      outputEl.innerText = `🔄 Đang tạo ${count} proxy và kiểm tra qua API...`;
+
+      const proxies = Array.from({ length: count }, () => buildProxyFromTemplate(tpl));
+      for (let i = 0; i < proxies.length; i++) {
+        const proxy = proxies[i];
+        const result = await testProxy(proxy);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${proxy}</td>
+          <td class="${result.ok ? 'ok' : 'fail'}">${result.ok ? 'LIVE' : 'DIE'}</td>
+          <td>${result.ok ? result.ip : result.error}</td>`;
+        tbody.appendChild(row);
+      }
+      outputEl.innerText = "✅ Hoàn tất kiểm tra tất cả proxy!";
+    }
+  </script>
+</body>
+</html>
