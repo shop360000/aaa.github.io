@@ -156,12 +156,16 @@
     // =============================================================
     // 🧱 TẠO PROFILE HÀNG LOẠT
     // =============================================================
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+      }
     async function bulkCreate() {
       if (!parsedData || parsedData.method !== 'POST')
         return alert("Hãy dán đoạn fetch() tạo profile (POST) và bấm Phân tích trước!");
 
-      const total = parseInt(document.getElementById("createCount").value) || 200;
-      const batchSize = 200;
+      const total = parseInt(document.getElementById("createCount").value) || 20;
+      const delayMs = 300; // 🕒 đổi tuỳ ý
+      const batchSize = 20;
       let created = 0;
       const outputEl = document.getElementById("output");
       outputEl.innerText = `🚀 Bắt đầu tạo ${total} profile...\n`;
