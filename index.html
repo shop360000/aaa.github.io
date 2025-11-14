@@ -139,7 +139,7 @@
         }
 
         if (allProfiles.length > 0) {
-          const lines = allProfiles.map(p => `${p.id} | ${p.name || ''}`).join("\n");
+          const lines = allProfiles.map(p => p.id).join("\n");
           const blob = new Blob([lines], { type: "text/plain" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
