@@ -143,7 +143,7 @@
           const blob = new Blob([lines], { type: "text/plain" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
-          a.download = "profiles_list.txt";
+          a.download = "id.txt";
           a.click();
           outputEl.innerText += `\n📄 Hoàn tất! Tổng cộng ${allProfiles.length} profiles.`;
         } else outputEl.innerText = "⚠️ Không tìm thấy profile nào.";
@@ -184,6 +184,7 @@
         await Promise.allSettled(promises);
         created += remaining;
         outputEl.innerText += `✅ Đã tạo ${created}/${total}\n`;
+        await sleep(delayMs); // 🕒 Thêm delay tại đây
       }
 
       outputEl.innerText += `🎉 Hoàn tất tạo ${total} profile!`;
@@ -223,7 +224,7 @@
 
     async function bulkCheckProxy() {
       const tpl = document.getElementById("proxyTemplate").value.trim();
-      const count = parseInt(document.getElementById("proxyCount").value) || 5;
+      const count = parseInt(document.getElementById("proxyCount").value) || 50;
       if (!tpl.includes("{RAND}")) return alert("Template phải chứa {RAND} để sinh ngẫu nhiên!");
       const outputEl = document.getElementById("output");
       const tbody = document.querySelector("#proxyTable tbody");
@@ -237,7 +238,6 @@
         const result = await testProxy(proxy);
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${i + 1}</td>
           <td>${proxy}</td>
           <td class="${result.ok ? 'ok' : 'fail'}">${result.ok ? 'LIVE' : 'DIE'}</td>
           <td>${result.ok ? result.ip : result.error}</td>`;
